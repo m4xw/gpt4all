@@ -25,6 +25,7 @@ project(llmodel VERSION ${LLMODEL_VERSION} LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+set(CMAKE_VERBOSE_MAKEFILE ON)
 set(BUILD_SHARED_LIBS ON)
 
 # Check for IPO support
@@ -36,15 +37,28 @@ else()
     message(STATUS "Interprocedural optimization support detected")
 endif()
 
+# llama.cpp base configuration
+set(LLAMA_LTO ${IPO_SUPPORTED})
 include(llama.cpp.cmake)
 
+# Build variant list
 set(BUILD_VARIANTS default avxonly)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# Detect CUDA
+find_package(CUDAToolkit)
+if (CUDAToolkit_FOUND)
+    list(APPEND BUILD_VARIANTS cuda)
+endif()
+
+# Detect opencl
+find_package(CLBlast)
+if (CLBlast_FOUND)
+    list(APPEND BUILD_VARIANTS opencl)
+endif()
 
 # Go through each build variant
 foreach(BUILD_VARIANT IN LISTS BUILD_VARIANTS)
-    # Determine flags
+    # avxonly configuration
     if (BUILD_VARIANT STREQUAL avxonly)
         set(GPT4ALL_ALLOW_NON_AVX NO)
     else()
@@ -54,10 +68,26 @@ foreach(BUILD_VARIANT IN LISTS BUILD_VARIANTS)
     set(LLAMA_F16C ${GPT4ALL_ALLOW_NON_AVX})
     set(LLAMA_FMA  ${GPT4ALL_ALLOW_NON_AVX})
 
+    # cuda configuration
+    if (BUILD_VARIANT STREQUAL cuda)
+        set(LLAMA_CUBLAS YES)
+    else()
+        set(LLAMA_CUBLAS NO)
+    endif()
+
+    # opencl configuration
+    if (BUILD_VARIANT STREQUAL opencl)
+        set(LLAMA_CLBLAST YES)
+    else()
+        set(LLAMA_CLBLAST NO)
+    endif()
+
     # Include GGML
     include_ggml(llama.cpp-mainline -mainline-${BUILD_VARIANT} ON)
-    include_ggml(llama.cpp-230511 -230511-${BUILD_VARIANT} ON)
     include_ggml(llama.cpp-230519 -230519-${BUILD_VARIANT} ON)
+    if (NOT LLAMA_CLBLAST)
+        include_ggml(llama.cpp-230511 -230511-${BUILD_VARIANT} ON)
+    endif()
 
     # Function for preparing individual implementations
     function(prepare_target TARGET_NAME BASE_LIB)
@@ -87,19 +117,21 @@ foreach(BUILD_VARIANT IN LISTS BUILD_VARIANTS)
         LLAMA_VERSIONS===2 LLAMA_DATE=230519)
     prepare_target(llamamodel-230519 llama-230519)
 
-    add_library(llamamodel-230511-${BUILD_VARIANT} SHARED
-        llamamodel.cpp)
-    target_compile_definitions(llamamodel-230511-${BUILD_VARIANT} PRIVATE
-        LLAMA_VERSIONS=<=1 LLAMA_DATE=230511)
-    prepare_target(llamamodel-230511 llama-230511)
+    if (NOT LLAMA_CLBLAST)
+        add_library(llamamodel-230511-${BUILD_VARIANT} SHARED
+            llamamodel.cpp)
+        target_compile_definitions(llamamodel-230511-${BUILD_VARIANT} PRIVATE
+            LLAMA_VERSIONS=<=1 LLAMA_DATE=230511)
+        prepare_target(llamamodel-230511 llama-230511)
 
-    add_library(gptj-${BUILD_VARIANT} SHARED
-        gptj.cpp utils.h utils.cpp)
-    prepare_target(gptj ggml-230511)
+        add_library(gptj-${BUILD_VARIANT} SHARED
+            gptj.cpp utils.h utils.cpp)
+        prepare_target(gptj ggml-230511)
 
-    add_library(mpt-${BUILD_VARIANT} SHARED
-        mpt.cpp utils.h utils.cpp)
-    prepare_target(mpt ggml-230511)
+        add_library(mpt-${BUILD_VARIANT} SHARED
+            mpt.cpp utils.h utils.cpp)
+        prepare_target(mpt ggml-230511)
+    endif()
 endforeach()
 
 add_library(llmodel
