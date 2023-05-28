@@ -39,6 +39,9 @@ struct gpt_params {
 #if LLAMA_DATE <= 230511
     int32_t n_parts       = -1;   // amount of model parts (-1 = determine from model dimensions)
 #endif
+#if LLAMA_DATE >= 230519
+    int32_t n_gpu_layers  = 32;
+#endif
 
 #if LLAMA_DATE >= 230519
     // sampling parameters
@@ -111,6 +114,9 @@ bool LLamaModel::loadModel(const std::string &modelPath)
     d_ptr->params.f16_kv     = params.memory_f16;
     d_ptr->params.use_mmap   = params.use_mmap;
     d_ptr->params.use_mlock  = params.use_mlock;
+#if LLAMA_DATE >= 230519
+    d_ptr->params.n_gpu_layers = params.n_gpu_layers;
+#endif
 #if LLAMA_DATE <= 230511
     d_ptr->params.n_parts  = params.n_parts;
 #endif
