@@ -68,6 +68,10 @@ option(LLAMA_OPENBLAS               "llama: use OpenBLAS"                       
 #option(LLAMA_CUBLAS                 "llama: use cuBLAS"                                     OFF)
 #option(LLAMA_CLBLAST                "llama: use CLBlast"                                    OFF)
 
+# cuda specific
+set(LLAMA_CUDA_DMMV_X "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
+set(LLAMA_CUDA_DMMV_Y "1" CACHE STRING  "llama: y block size for dmmv CUDA kernels")
+
 #
 # Compile flags
 #
