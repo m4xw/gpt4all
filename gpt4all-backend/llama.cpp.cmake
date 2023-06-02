@@ -272,16 +272,6 @@ function(include_ggml DIRECTORY SUFFIX WITH_LLAMA)
         set_target_properties(ggml${SUFFIX} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
 
-    if (GGML_CUBLAS_USE)
-        target_compile_definitions(ggml${SUFFIX} PRIVATE
-            GGML_USE_CUBLAS
-            GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X}
-            GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y})
-    endif()
-    if (GGML_CLBLAST_USE)
-        target_compile_definitions(ggml${SUFFIX} PRIVATE GGML_USE_CLBLAST)
-    endif()
-
     if (WITH_LLAMA)
         # Backwards compatibility with old llama.cpp versions
         set(LLAMA_UTIL_SOURCE_FILE llama-util.h)
@@ -311,6 +301,25 @@ function(include_ggml DIRECTORY SUFFIX WITH_LLAMA)
         if (WITH_LLAMA)
             set_property(TARGET llama${SUFFIX} PROPERTY CUDA_ARCHITECTURES OFF)
         endif()
+    endif()
+
+    if (GGML_CUBLAS_USE)
+        target_compile_definitions(ggml${SUFFIX} PRIVATE
+            GGML_USE_CUBLAS
+            GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X}
+            GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y})
+        if (WITH_LLAMA)
+            target_compile_definitions(llama${SUFFIX} PRIVATE
+                GGML_USE_CUBLAS
+                GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X}
+                GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y})
+        endif()
+    endif()
+    if (GGML_CLBLAST_USE)
+        if (WITH_LLAMA)
+            target_compile_definitions(llama${SUFFIX} PRIVATE GGML_USE_CLBLAST)
+        endif()
+        target_compile_definitions(ggml${SUFFIX} PRIVATE GGML_USE_CLBLAST)
     endif()
 
     if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
