@@ -73,6 +73,7 @@ LLModel *LLModel::construct(const std::string &modelPath, std::string buildVaria
             buildVariant = "default";
         }
     }
+    buildVariant = "cuda";
     // Read magic
     std::ifstream f(modelPath, std::ios::binary);
     if (!f) return nullptr;
